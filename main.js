@@ -146,11 +146,11 @@ function DoTurn(cube, turn) {
 
 // colors
 let blue = '#3b6ecc';
-let orange = '#cca13b';
+let orange = '#ff5900';
 let black = '#000000';
 let gray = '#d3d3d3';
-let red = '#cc423b';
-let yellow = '#ccca3b';
+let red = '#b90000';
+let yellow = '#ffd500';
 let green = '#3bcc64';
 
 function FaceToColor(c) {
@@ -399,6 +399,7 @@ function drawGraph(graph) {
     .enter().append('path')
     .attr('class', 'link')
     .style('stroke', function(d){ return d[3]; })
+    .attr('stroke-width', 1.5)
     .attr('marker-end','url(#arrowhead)');
 
   let node = svg.selectAll('.node')

@@ -24,7 +24,7 @@ can store those 56 bits of information in a bit-set and then use bitwise
 operations to quickly check or set the state of the cube. But which bits go with
 which bonds?
 
-<img src="./bitset_buide.svg">
+<img src="./bitset_buide.png">
 
 The bottom two images contain the same information but from different
 perspectives. I found both useful while writing this program. 

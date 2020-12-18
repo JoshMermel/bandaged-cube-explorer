@@ -535,6 +535,7 @@ function TryLoadGraph(str) {
   d3.selectAll('svg').remove();
   drawGraph(BuildGraph(id));
   window.history.pushState({"html":"index.html"},"", "/bandaged-cube-explorer?id=" + str);
+  console.log("setting id");
 }
 
 function LoadGraph(ele) {

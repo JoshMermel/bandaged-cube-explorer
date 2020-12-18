@@ -534,6 +534,7 @@ function TryLoadGraph(str) {
 
   d3.selectAll('svg').remove();
   drawGraph(BuildGraph(id));
+  window.history.pushState({"html":"index.html"},"", "/" + str);
 }
 
 function LoadGraph(ele) {
@@ -566,3 +567,10 @@ window.onload = function() {
 //   0x100400C7AC043D - very spread out
 //   0x8000F43237A1 - great 2 way symmetry
 //   0x300F9180600C23 - cool cubes
+//   0x10000000000002	 - impossibly tangled
+//   0x80200084 - good layers
+//   0x182800008 - 4 way symmetry
+//   0x180002C00 - 3 way symmetry
+//   0xC61 - 2 way symmetry
+//   0xC23 - 2 way symmetry (small)
+//   0x180608040 - very compact

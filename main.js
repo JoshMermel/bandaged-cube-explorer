@@ -540,6 +540,7 @@ function LoadGraph(ele) {
     return;
   }
   TryLoadGraph(ele.value);
+  window.history.pushState({"html":"index.html"},"", "/bandaged-cube-explorer?id=" + str);
 }
 
 // TODO(jmerm): randomize from a bunch of nice IDs.

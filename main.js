@@ -580,7 +580,7 @@ function defaultId() {
     '0x100400C7AC043D',
     '0x182800008',
     '0xc63',
-    '30000000040203',
+    '0x30000000040203',
     '0x8000802005A0',
   ]
   return starters[Math.floor(Math.random() * starters.length)];

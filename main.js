@@ -89,7 +89,6 @@ const blockers = {
   f : MakeBitSet([ 2n,  3n,  4n, 23n, 24n, 25n, 44n, 45n, 46n]),
 }
 
-
 // Cube is a BigInt bitset. Turn is one of {b,l,u,r,d,f}
 // Returns whether that face is blocked.
 function CanDoTurn(cube, turn) {
@@ -146,11 +145,11 @@ function DoTurn(cube, turn) {
 
 // colors
 let blue = '#3b6ecc';
-let orange = '#cca13b';
+let orange = '#ff5900';
 let black = '#000000';
 let gray = '#d3d3d3';
-let red = '#cc423b';
-let yellow = '#ccca3b';
+let red = '#b90000';
+let yellow = '#ffd500';
 let green = '#3bcc64';
 
 function FaceToColor(c) {
@@ -399,6 +398,7 @@ function drawGraph(graph) {
     .enter().append('path')
     .attr('class', 'link')
     .style('stroke', function(d){ return d[3]; })
+    .attr('stroke-width', 1.5)
     .attr('marker-end','url(#arrowhead)');
 
   let node = svg.selectAll('.node')
@@ -507,12 +507,40 @@ function dragended(d) {
 
 // TODO(jmerm): include more named cubes.
 const named_cubes = new Map([
-  ['stonehenge', 0x88000B42FB5A1n],
+  ['rubik’s', 0x0n],
+  ['clock', 0x20n],
+  ['stripe', 0x400n],
+  ['bar', 0x60n],
+  ['edge', 0xC00n],
+  ['slice', 0x4018020n],
+  ['quad', 0x5A0n],
+  ['bridge', 0x461n],
+  ['stalactites', 0x10000000C08n],
+  ['lioh', 0x10000000000461n],
+  ['bell', 0x8B4004000n],
+  ['morse', 0x29A00000400n],
+  ['c-block', 0xB5A00000n],
+  ['plate', 0x5ADn],
+  ['2-3-4', 0x2020010002Dn],
+  ['loop', 0x180600C03n],
+  ['equator', 0x300C0000000C03n],
+  ['aurumq', 0x1FC600000n],
+  ['grandstand', 0x18C000FE0n],
+  ['diamond', 0x8000802E3401n],
+  ['pendulum', 0x18000842E0421n],
+  ['rayray', 0x1FC203001n],
+  ['fortress', 0x3FE00000421n],
+  ['fuse', 0xB40D85A0n],
+  ['3-slices', 0x842DB421n],
+  ['aggressor', 0x3FE0000041Cn],
+  ['roux', 0x100586802C3421n],
   ['1x3x3', 0x318C018C600C63n],
+  ['stonehenge', 0x88000B42FB5A1n],
+  ['alcatraz', 0x108400F43F87A1n],
 ]);
 
 function TryLoadGraph(str) {
-  let id = 0;
+  console.log(named_cubes);
   // check if it is the name of a named cube
   if (named_cubes.has(str.toLowerCase())) {
     id = named_cubes.get(str.toLowerCase());
@@ -533,7 +561,8 @@ function TryLoadGraph(str) {
 
   d3.selectAll('svg').remove();
   drawGraph(BuildGraph(id));
-  window.history.replaceState({"html":"index.html"},"", "/bandaged-cube-explorer?id=" + str);
+  window.history.pushState({"html":"index.html"},"", "/bandaged-cube-explorer?id=" + str);
+  console.log("setting id");
 }
 
 function LoadGraph(ele) {
@@ -545,7 +574,17 @@ function LoadGraph(ele) {
 
 // TODO(jmerm): randomize from a bunch of nice IDs.
 function defaultId() {
-  return '0x108BF0846005A1';
+  const starters = [
+    '0x108BF0846005A1',
+    '0x80200084',
+    '0x100400C7AC043D',
+    '0x182800008',
+    '0xc63',
+    '30000000040203',
+    '0x8000802005A0',
+  ]
+  return starters[Math.floor(Math.random() * starters.length)];
+
 }
 
 window.onload = function() {
@@ -564,5 +603,27 @@ window.onload = function() {
 
 // nice graphs;
 //   0x100400C7AC043D - very spread out
-//   0x8000F43237A1 - great 2 way symmetry
 //   0x300F9180600C23 - cool cubes
+//   0x10000000000002	 - impossibly tangled
+
+//   0x80200084 - good layers
+//   0x802C0403 - good layers
+
+//   0x8000F43237A1 - great 2 way symmetry
+//   0xC61 - 2 way symmetry
+//   0xC23 - 2 way symmetry (small)
+//   0x180002C00 - 3 way symmetry
+//   0x182800008 - 4 way symmetry
+
+//   0x110000C60	 untangles to look like a frog
+//   0x63 old woman face?
+
+//   30000000040203 wow
+//   0x8000802005A0 wow
+//   0x180608040 - very compact
+//   0x10000000000C63 pretty
+
+//   0x40800200C03 linear
+//   0x0x8040000200C03 long forced chains
+
+//   0x10000180600021 - no symmetry?

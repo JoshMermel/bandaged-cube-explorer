@@ -540,7 +540,6 @@ const named_cubes = new Map([
 ]);
 
 function TryLoadGraph(str) {
-  console.log(named_cubes);
   // check if it is the name of a named cube
   if (named_cubes.has(str.toLowerCase())) {
     id = named_cubes.get(str.toLowerCase());
@@ -562,7 +561,6 @@ function TryLoadGraph(str) {
   d3.selectAll('svg').remove();
   drawGraph(BuildGraph(id));
   window.history.pushState({"html":"index.html"},"", "/bandaged-cube-explorer?id=" + str);
-  console.log("setting id");
 }
 
 function LoadGraph(ele) {

@@ -362,7 +362,7 @@ function drawGraph(graph) {
   svg.append('defs').append('marker')
     .attr('id','arrowhead')
     .attr('viewBox','-0 -5 10 10')
-     .attr('refX',23) // x coordinate for the reference point of the marker. If circle is bigger, this need to be bigger.
+     .attr('refX',20) // x coordinate for the reference point of the marker. If circle is bigger, this need to be bigger.
      .attr('refY',0)
      .attr('orient','auto')
         .attr('markerWidth',8)
@@ -374,32 +374,21 @@ function drawGraph(graph) {
     .style('stroke','none');
 
   simulation = d3.forceSimulation()
-    .force('link', d3.forceLink().distance(10).strength(1.5))
-    .force('charge', d3.forceManyBody().strength(-200))
+    .force("link", d3.forceLink().distance(30).strength(2).id(function(d) { return d.id; }))
+    .force('charge', d3.forceManyBody().strength(-300))
     .force('center', d3.forceCenter(width / 2, height / 2));
 
   let nodes = graph.nodes;
   let nodeById = d3.map(nodes, function(d) { return d.id; });
-  let link = graph.links;
-  let bilinks = [];
-
-  link.forEach(function(l) {
-    let s = l.source = nodeById.get(l.source),
-      t = l.target = nodeById.get(l.target),
-      i = {}; // intermediate node
-    nodes.push(i);
-    link.push({source: s, target: i}, {source: i, target: t});
-    bilinks.push([s, i, t, l.color]);
-  });
 
 
   let links = svg.selectAll('.link')
-    .data(bilinks)
+    .data(graph.links)
     .enter().append('path')
     .attr('class', 'link')
-    .style('stroke', function(d){ return d[3]; })
+    .style('stroke', function(d){ return d.color; })
     .attr('stroke-width', 1.5)
-    .attr('marker-end','url(#arrowhead)');
+      .attr('marker-end', function(d) { return (d.source == d.target ? '' : 'url(#arrowhead)');});
 
   let node = svg.selectAll('.node')
      // Use presence size field to distinguish real nodes from intermediate ones.
@@ -472,13 +461,12 @@ function ColorToAdjustment(c) {
 
 // https://stackoverflow.com/a/17687907
 function positionLink(d) {
-  if (d[0] == d[2]) {
-    let adjustment = ColorToAdjustment(d[3]);
-    return 'M' + d[0].x+ ',' + d[0].y+ 'A20,20 0,1,0 '  + (d[0].x + adjustment.x) + ',' + (d[2].y + adjustment.y);
+  if (d.source == d.target) {
+    let adjustment = ColorToAdjustment(d.color);
+    return 'M' + d.source.x+ ',' + d.source.y+ 'A20,20 0,1,0 '  + (d.target.x + adjustment.x) + ',' + (d.target.y + adjustment.y);
   }
-  return 'M' + d[0].x + ',' + d[0].y
-       + 'S' + d[1].x + ',' + d[1].y
-       + ' ' + d[2].x + ',' + d[2].y;
+  return 'M' + d.source.x + ',' + d.source.y
+       + 'L' + d.target.x + ',' + d.target.y;
 }
 
 function positionNode(d) {

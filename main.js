@@ -636,7 +636,7 @@ function TryLoadGraph(str, ignore_orientation) {
 
   // Update the URL to match the users's input so it can be copy-pasted more
   // easily.
-  let params = '?id=' + str + (ignore_orientation ? 'ignore_orientation=true' : '');
+  let params = '?id=' + str + (ignore_orientation ? '&ignore_orientation=true' : '');
   window.history.pushState({'html':'index.html'},'', '/bandaged-cube-explorer' + params);
 }
 

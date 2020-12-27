@@ -454,10 +454,11 @@ function drawGraph(graph, use_colors) {
     .attr('fill', '#999')
     .style('stroke','none');
 
+  let ratio = graph.links.length / graph.nodes.length;
   // TODO(jmerm): set link length/strength depending on density of edges?
   simulation = d3.forceSimulation()
-    .force('link', d3.forceLink().distance(300).strength(2).id(function(d) { return d.id; }))
-    .force('charge', d3.forceManyBody().strength(-300))
+    .force('link', d3.forceLink().distance(60*ratio).strength(2).id(function(d) { return d.id; }))
+    .force('charge', d3.forceManyBody().strength(-400))
     .force('center', d3.forceCenter(width / 2, height / 2));
 
   let nodes = graph.nodes;

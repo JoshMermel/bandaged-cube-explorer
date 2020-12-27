@@ -243,48 +243,6 @@ function FaceToColor(c) {
   console.log('unexpected turn id, ', turn); 
 }
 
-function BfsExploreNode(to_explore, turn, ignore_orientation, node_set, nodes, links) {
-  if (CanDoTurn(to_explore, turn)) {
-    let turned = DoTurn(to_explore, turn);
-    if (ignore_orientation) {
-      turned = NormalizeOrientation(turned);
-    }
-    if (!node_set.has(turned)) {
-      nodes.push({size: 11, id: turned, color: '#1f77b4'});
-      node_set.add(turned);
-    }
-    if (to_explore < turned) {
-      links.push({
-        source: to_explore,
-        target: turned,
-        color: FaceToColor(turn)
-      });
-    }
-  }
-}
-
-// TODO(jmerm): this sucks but fixes a bug. Comment about it and maybe fold it
-// into BfsExploreNode.
-function BfsExploreNodeInverse(to_explore, turn, ignore_orientation, node_set, nodes, links) {
-  if (CanDoTurn(to_explore, turn)) {
-    let turned = DoTurn(DoTurn(DoTurn(to_explore, turn), turn), turn);
-    if (ignore_orientation) {
-      turned = NormalizeOrientation(turned);
-    }
-    if (!node_set.has(turned)) {
-      nodes.push({size: 11, id: turned, color: '#1f77b4'});
-      node_set.add(turned);
-    }
-    if (to_explore < turned) {
-      links.push({
-        target: turned,
-        source: to_explore,
-        color: FaceToColor(turn)
-      });
-    }
-  }
-}
-
 // Explores the state space starting from Cube.
 // Returns an object containing Nodes and Links, appropriate for use with
 // d3.js's force simulation library.
@@ -299,17 +257,39 @@ function BuildGraph(cube, ignore_orientation) {
 
   node_set.add(cube);
   while (i < nodes.length) {
-    let to_explore = nodes[i].id;
-    for (let turn of ['b', 'l', 'u', 'r', 'd', 'f']) {
-      BfsExploreNode(to_explore, turn, ignore_orientation, node_set, nodes, links);
-      BfsExploreNodeInverse(to_explore, turn, ignore_orientation, node_set, nodes, links);
+    // If the node being explored is was mirrored during normalization, our
+    // turns will be applied backwards. We could implement reverse quarter turns
+    // but it's easier to just mirror the node being explored and go from there.
+    let to_explore = nodes[i].mirrored ? Mirror(nodes[i].id) : nodes[i].id;
+    for (let c of ['b', 'l', 'u', 'r', 'd', 'f']) {
+      if (CanDoTurn(to_explore, c)) {
+        let turned = DoTurn(to_explore, c);
+        let mirrored = false;
+        if (ignore_orientation) {
+          let t1 = NormalizeOrientationNoMirror(turned);
+          let t2 = NormalizeOrientationNoMirror(Mirror(turned));
+          if (t1 < t2) {
+            turned = t1;
+            mirror = false;
+          } else {
+            turned = t2;
+            mirrored = true;
+          }
+        }
+        if (!node_set.has(turned)) {
+          nodes.push({size: 11, id: turned, color: '#1f77b4', mirrored: mirrored});
+          node_set.add(turned);
+        }
+        links.push({
+          source: nodes[i].id,
+          target: turned,
+          color: FaceToColor(c)
+        });
+      }
     }
-    // TODO(jmerm): inverses
     i++;
   }
 
-  console.log(nodes.length);
-  console.log(links.length);
   return {nodes: nodes, links: links};
 }
 

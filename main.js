@@ -56,6 +56,14 @@ function SetBit(cube, idx, val) {
   }
 }
 
+// Math.min doesn't work on BigInts so we implement our own.
+function Min(a, b) {
+  if (a < b) {
+    return a;
+  }
+  return b;
+}
+
 // cycles bits according to perms.
 // Could maybe be optimized by some special purpose code for each permutation
 // from http://programming.sirrida.de/bit_perm.html#calculator
@@ -71,6 +79,71 @@ function ApplyPermutations(cube, permutations) {
     cube = SetBit(cube, perm[perm.length - 1], start);
   }
   return cube;
+}
+
+// Performs a Y rotation of the cube
+function RotY(cube) {
+  return ApplyPermutations(cube, 
+    [[0n,4n,11n,7n], [1n,9n,10n,2n], [3n,6n,8n,5n], [12n,14n,20n,18n],
+      [13n,17n,19n,15n], [21n,25n,32n,28n], [22n,30n,31n,23n],
+      [24n,27n,29n,26n], [33n,35n,41n,39n], [34n,38n,40n,36n],
+      [42n,46n,53n,49n], [43n,51n,52n,44n], [45n,48n,50n,47n]]);
+}
+
+// Performs a Z rotation of the cube
+function RotZ(cube) {
+  return ApplyPermutations(cube, 
+    [[0n,14n,43n,33n], [1n,35n,42n,12n], [2n,4n,46n,44n], [3n,25n,45n,23n],
+      [5n,17n,48n,36n], [6n,38n,47n,15n], [7n,9n,51n,49n], [8n,30n,50n,28n],
+      [10n,20n,53n,39n], [11n,41n,52n,18n], [13n,22n,34n,21n],
+      [16n,27n,37n,26n], [19n,32n,40n,31n]]);
+}
+
+// Performs a mirror image of the cube such that the L and R faces swap.
+function Mirror(cube) {
+  return ApplyPermutations(cube, 
+    [[0n,1n], [2n,4n], [5n,6n], [7n,9n], [10n,11n], [12n,14n], [15n,17n],
+      [18n,20n], [21n,22n], [23n,25n], [26n,27n], [28n,30n], [31n,32n],
+      [33n,35n], [36n,38n], [39n,41n], [42n,43n], [44n,46n], [47n,48n],
+      [49n,51n], [52n,53n]]);
+}
+
+// Helper for normalizing cube orientation. Checks all orientations where the
+// UF, UL, or FL edge is in the UF position (oriented either way).
+function NormalizeOrientationCorner(cube) {
+  let min = cube;
+  for (let i = 0; i < 3; i++) {
+    cube = RotY(cube);
+    min = Min(min, cube);
+    cube = RotZ(cube);
+    min = Min(min, cube);
+  }
+  return min;
+}
+
+// Helper for normalizing cube orientation. Checks all orientations where the
+// UF, UL, FL, UB, UR, or RB edges are in the UF position (in either
+// orientaiton).
+function NormalizeOrientationFace(cube) {
+  let y2 = RotY(RotY(cube));
+  return Min(NormalizeOrientationCorner(cube),
+             NormalizeOrientationCorner(y2));
+}
+
+// Helper for normalizing cube orientation. Checks all orientations of the input
+// (but not its mirror image) and returns whichever is smallest.
+function NormalizeOrientationNoMirror(cube) {
+  let z2 = RotZ(RotZ(cube));
+  return Min(NormalizeOrientationFace(cube),
+                  NormalizeOrientationFace(z2));
+}
+
+// Checks all 48 orientations of the cube including its mirror images and
+// returns whichever one is smallest.
+// TODO(jmerm): method for adding implicit bonds.
+function NormalizeOrientation(cube) {
+  return Min(NormalizeOrientationNoMirror(cube), 
+             NormalizeOrientationNoMirror(Mirror(cube)));
 }
 
 ///////////////////////////////////////
@@ -173,7 +246,10 @@ function FaceToColor(c) {
 // Explores the state space starting from Cube.
 // Returns an object containing Nodes and Links, appropriate for use with
 // d3.js's force simulation library.
-function BuildGraph(cube) {
+function BuildGraph(cube, ignore_orientation) {
+  if (ignore_orientation) {
+    cube = NormalizeOrientation(cube);
+  }
   let i = 0;
   let nodes = [{size: 11, id: cube, color: '#ff7f0e'}];
   let node_set = new Set(); // all nodes so far and their ints
@@ -185,6 +261,9 @@ function BuildGraph(cube) {
     for (let c of ['b', 'l', 'u', 'r', 'd', 'f']) {
       if (CanDoTurn(to_explore, c)) {
         let turned = DoTurn(to_explore, c);
+        if (ignore_orientation) {
+          turned = NormalizeOrientation(turned);
+        }
         if (!node_set.has(turned)) {
           nodes.push({size: 11, id: turned, color: '#1f77b4'});
           node_set.add(turned);
@@ -277,7 +356,7 @@ function DrawLegendColor(xoffset, yoffset, scale, color, present) {
 //     |    |    
 // There is also an element at index 12 which indicates whether the center is
 // fused to the core.
-function DrawLegendFace(cube, xoffset, yoffset, scale, bonds, color) {
+function DrawLegendFace(cube, xoffset, yoffset, scale, bonds, color, use_colors) {
   // Determines which stickers are fused to the center so they can be colored
   // in.
   let center_colors = [
@@ -294,9 +373,11 @@ function DrawLegendFace(cube, xoffset, yoffset, scale, bonds, color) {
 
   // Draw center colors. This happens first to avoid drawing over outlines or
   // bonds.
-  for (let i = 0; i < 9; i++) {
-    if (center_colors[i]) {
-      DrawLegendColor(xoffset + ((i%3) * scale), yoffset + (~~(i/3) * scale), scale, color);
+  if (use_colors) {
+    for (let i = 0; i < 9; i++) {
+      if (center_colors[i]) {
+        DrawLegendColor(xoffset + ((i%3) * scale), yoffset + (~~(i/3) * scale), scale, color);
+      }
     }
   }
 
@@ -320,7 +401,7 @@ function DrawLegendFace(cube, xoffset, yoffset, scale, bonds, color) {
   }
 }
 
-function DrawLegend(xoffset, yoffset, scale, cube) {
+function DrawLegend(xoffset, yoffset, scale, cube, use_colors) {
   console.log('drawing legend for cube ', cube);
   // Unscaled offsets of how the faces are laid out relative to one another.
   // Each face is a 3x3 square before scaling.
@@ -336,7 +417,7 @@ function DrawLegend(xoffset, yoffset, scale, cube) {
   ]
 
   for (let face of FaceData) {
-    DrawLegendFace(cube, face.x * scale + xoffset, face.y * scale + yoffset, scale, face.cuts, face.color);
+    DrawLegendFace(cube, face.x * scale + xoffset, face.y * scale + yoffset, scale, face.cuts, face.color, use_colors);
   }
 }
 
@@ -348,7 +429,7 @@ function DrawLegend(xoffset, yoffset, scale, cube) {
 // The crux of this whole program. This function takes a graph containing a list
 // of nodes and links and draws it. It also sets up all the listeners for
 // interactivity like dragging and hovering.
-function drawGraph(graph) {
+function drawGraph(graph, use_colors) {
   svg_legend = d3.select('body').append('svg')
     .attr('viewBox', [0, 0, width, height]);
   svg = d3.select('body').append('svg')
@@ -373,8 +454,9 @@ function drawGraph(graph) {
     .attr('fill', '#999')
     .style('stroke','none');
 
+  // TODO(jmerm): set link length/strength depending on density of edges?
   simulation = d3.forceSimulation()
-    .force("link", d3.forceLink().distance(30).strength(2).id(function(d) { return d.id; }))
+    .force('link', d3.forceLink().distance(300).strength(2).id(function(d) { return d.id; }))
     .force('charge', d3.forceManyBody().strength(-300))
     .force('center', d3.forceCenter(width / 2, height / 2));
 
@@ -386,7 +468,7 @@ function drawGraph(graph) {
     .data(graph.links)
     .enter().append('path')
     .attr('class', 'link')
-    .style('stroke', function(d){ return d.color; })
+    .style('stroke', function(d){ return use_colors ? d.color : black; })
     .attr('stroke-width', 1.5)
       .attr('marker-end', function(d) { return (d.source == d.target ? '' : 'url(#arrowhead)');});
 
@@ -401,7 +483,7 @@ function drawGraph(graph) {
       .on('start', dragstarted)
       .on('drag', dragged)
       .on('end', dragended))
-    .on('mouseover', focus)
+    .on('mouseover', focus(use_colors))
     .on('mouseout', unfocus);
     
   let circles = node.append('circle')
@@ -426,11 +508,13 @@ function drawGraph(graph) {
 }
 
 // Helpers for drawing and erasing the legend from a background svg.
-function focus(d) {
-  let scale = Math.min(width / 4, height / 3) / 12
-  let xoffset = (d.x > width / 2) ? 50 : width - (12 * scale) - 50;
-  let yoffset = (d.y > height / 2) ? 50 : height - (9 * scale) - 50;
-  DrawLegend(xoffset, yoffset, scale, d.id);
+function focus(use_colors) {
+  return function(d) {
+    let scale = Math.min(width / 4, height / 3) / 12
+    let xoffset = (d.x > width / 2) ? 50 : width - (12 * scale) - 50;
+    let yoffset = (d.y > height / 2) ? 50 : height - (9 * scale) - 50;
+    DrawLegend(xoffset, yoffset, scale, d.id, use_colors);
+  }
 }
 function unfocus() {
   svg_legend.selectAll('*.legend').remove();
@@ -527,7 +611,7 @@ const named_cubes = new Map([
   ['alcatraz', 0x108400F43F87A1n],
 ]);
 
-function TryLoadGraph(str) {
+function TryLoadGraph(str, ignore_orientation) {
   // check if it is the name of a named cube
   if (named_cubes.has(str.toLowerCase())) {
     id = named_cubes.get(str.toLowerCase());
@@ -547,18 +631,32 @@ function TryLoadGraph(str) {
   }
 
   d3.selectAll('svg').remove();
-  drawGraph(BuildGraph(id));
-  window.history.pushState({"html":"index.html"},"", "/bandaged-cube-explorer?id=" + str);
+  drawGraph(BuildGraph(id, ignore_orientation), /*use_color=*/ !ignore_orientation);
+
+  // Update the URL to match the users's input so it can be copy-pasted more
+  // easily.
+  let params = '?id=' + str + (ignore_orientation ? 'ignore_orientation=true' : '');
+  console.log(params);
+  window.history.pushState({'html':'index.html'},'', '/bandaged-cube-explorer' + params);
 }
 
 function LoadGraph(ele) {
-  if(event.key !== 'Enter') {
+  let ignore_orientation = document.getElementById('ignore_orientation').checked;
+  if (ele.id === 'input' && event.key !== 'Enter') {
+    // The user is typing - do not update the graph.
     return;
+  } else if (ele.id === 'input') {
+    // The user has pressed enter in the input box - check their other
+    // selections and then load the graph.
+    TryLoadGraph(ele.value, ignore_orientation);
+  } else if (ele.name === 'orientation'){
+    let id = document.getElementById('input').value;
+    TryLoadGraph(id, ignore_orientation);
   }
-  TryLoadGraph(ele.value);
 }
 
-// TODO(jmerm): randomize from a bunch of nice IDs.
+// TODO(jmerm): Add more interesting but small IDs here.
+// These were picked arbitrarily from small graphs.
 function defaultId() {
   const starters = [
     '0x108BF0846005A1',
@@ -574,6 +672,7 @@ function defaultId() {
 }
 
 window.onload = function() {
+  // Check for a URL param or get one of the default graphs.
   const queryString = window.location.search;
   const urlParams = new URLSearchParams(queryString);
   let id = defaultId();
@@ -581,35 +680,22 @@ window.onload = function() {
     id = urlParams.get('id')
   }
 
+  // Set the UI to match the graph being loaded
   document.getElementById('input').value = id;
 
+  // Check if the user wants signitures that differ only be a cube rotation or
+  // mirroring to be treated as identical.
+  let ignore_orientation = false;
+  if (urlParams.has('ignore_orientation') 
+    && urlParams.get('ignore_orientation').toLowerCase() != 'false') {
+    ignore_orientation = true;
+  }
+  if (ignore_orientation) {
+    document.getElementById('ignore_orientation').checked = true;
+  } else {
+    document.getElementById('fixed_orientation').checked = true;
+  }
+
   // Initialize page.
-  TryLoadGraph(id);
+  TryLoadGraph(id, ignore_orientation);
 }
-
-// nice graphs;
-//   0x100400C7AC043D - very spread out
-//   0x300F9180600C23 - cool cubes
-//   0x10000000000002	 - impossibly tangled
-
-//   0x80200084 - good layers
-//   0x802C0403 - good layers
-
-//   0x8000F43237A1 - great 2 way symmetry
-//   0xC61 - 2 way symmetry
-//   0xC23 - 2 way symmetry (small)
-//   0x180002C00 - 3 way symmetry
-//   0x182800008 - 4 way symmetry
-
-//   0x110000C60	 untangles to look like a frog
-//   0x63 old woman face?
-
-//   30000000040203 wow
-//   0x8000802005A0 wow
-//   0x180608040 - very compact
-//   0x10000000000C63 pretty
-
-//   0x40800200C03 linear
-//   0x0x8040000200C03 long forced chains
-
-//   0x10000180600021 - no symmetry?

@@ -243,6 +243,48 @@ function FaceToColor(c) {
   console.log('unexpected turn id, ', turn); 
 }
 
+function BfsExploreNode(to_explore, turn, ignore_orientation, node_set, nodes, links) {
+  if (CanDoTurn(to_explore, turn)) {
+    let turned = DoTurn(to_explore, turn);
+    if (ignore_orientation) {
+      turned = NormalizeOrientation(turned);
+    }
+    if (!node_set.has(turned)) {
+      nodes.push({size: 11, id: turned, color: '#1f77b4'});
+      node_set.add(turned);
+    }
+    if (to_explore < turned) {
+      links.push({
+        source: to_explore,
+        target: turned,
+        color: FaceToColor(turn)
+      });
+    }
+  }
+}
+
+// TODO(jmerm): this sucks but fixes a bug. Comment about it and maybe fold it
+// into BfsExploreNode.
+function BfsExploreNodeInverse(to_explore, turn, ignore_orientation, node_set, nodes, links) {
+  if (CanDoTurn(to_explore, turn)) {
+    let turned = DoTurn(DoTurn(DoTurn(to_explore, turn), turn), turn);
+    if (ignore_orientation) {
+      turned = NormalizeOrientation(turned);
+    }
+    if (!node_set.has(turned)) {
+      nodes.push({size: 11, id: turned, color: '#1f77b4'});
+      node_set.add(turned);
+    }
+    if (to_explore < turned) {
+      links.push({
+        target: turned,
+        source: to_explore,
+        color: FaceToColor(turn)
+      });
+    }
+  }
+}
+
 // Explores the state space starting from Cube.
 // Returns an object containing Nodes and Links, appropriate for use with
 // d3.js's force simulation library.
@@ -258,26 +300,16 @@ function BuildGraph(cube, ignore_orientation) {
   node_set.add(cube);
   while (i < nodes.length) {
     let to_explore = nodes[i].id;
-    for (let c of ['b', 'l', 'u', 'r', 'd', 'f']) {
-      if (CanDoTurn(to_explore, c)) {
-        let turned = DoTurn(to_explore, c);
-        if (ignore_orientation) {
-          turned = NormalizeOrientation(turned);
-        }
-        if (!node_set.has(turned)) {
-          nodes.push({size: 11, id: turned, color: '#1f77b4'});
-          node_set.add(turned);
-        }
-        links.push({
-          source: to_explore,
-          target: turned,
-          color: FaceToColor(c)
-        });
-      }
+    for (let turn of ['b', 'l', 'u', 'r', 'd', 'f']) {
+      BfsExploreNode(to_explore, turn, ignore_orientation, node_set, nodes, links);
+      BfsExploreNodeInverse(to_explore, turn, ignore_orientation, node_set, nodes, links);
     }
+    // TODO(jmerm): inverses
     i++;
   }
 
+  console.log(nodes.length);
+  console.log(links.length);
   return {nodes: nodes, links: links};
 }
 
@@ -668,7 +700,6 @@ function defaultId() {
     '0x8000802005A0',
   ]
   return starters[Math.floor(Math.random() * starters.length)];
-
 }
 
 window.onload = function() {
@@ -699,3 +730,4 @@ window.onload = function() {
   // Initialize page.
   TryLoadGraph(id, ignore_orientation);
 }
+

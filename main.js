@@ -445,10 +445,11 @@ function DrawLegend(xoffset, yoffset, scale, cube, use_colors) {
   .attr('dy', '1.4em')
   .text('id: 0x' + cube.toString(16));
 
-  textbox.append('tspan')
-  .attr('x', 7 * scale + xoffset)
-  .attr('dy', '1.4em')
-  .text('second_line');
+  // TODO(jmerm): more metadata
+//  textbox.append('tspan')
+//  .attr('x', 7 * scale + xoffset)
+//  .attr('dy', '1.4em')
+//  .text('second_line');
 }
 
 

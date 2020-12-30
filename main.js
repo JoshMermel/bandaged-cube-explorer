@@ -174,6 +174,7 @@ function CanDoTurn(cube, turn) {
 // Turns can be thought of as bit permutation that move bonds to new locations
 // which means I can use my favorite tool (
 function DoTurn(cube, turn) {
+  let ret = 0;
   switch (turn) {
     case 'b':
       return ApplyPermutations(cube, [
@@ -181,37 +182,44 @@ function DoTurn(cube, turn) {
         [11n, 41n, 52n, 18n],
         [19n, 32n, 40n, 31n]
       ]);
+      break;
     case 'l':
       return ApplyPermutations(cube, [
         [ 4n, 35n, 51n, 20n],
         [ 9n, 14n, 46n, 41n],
         [17n, 25n, 38n, 30n]
       ]);
+      break;
     case 'u':
       return ApplyPermutations(cube, [
         [42n, 49n, 53n, 46n],
         [43n, 44n, 52n, 51n],
         [45n, 47n, 50n, 48n]
       ]);
+      break;
     case 'r':
       return ApplyPermutations(cube, [
         [ 2n, 18n, 49n, 33n],
         [ 7n, 39n, 44n, 12n],
         [15n, 28n, 36n, 23n]
       ]);
+      break;
     case 'd':
       return ApplyPermutations(cube, [
         [ 0n,  4n, 11n,  7n],
         [ 1n,  9n, 10n,  2n],
         [ 3n,  6n,  8n,  5n]
       ]);
+      break;
     case 'f':
       return ApplyPermutations(cube, [
         [ 0n, 33n, 43n, 14n],
         [ 1n, 12n, 42n, 35n],
         [13n, 21n, 34n, 22n]
       ]);
+      break;
   }
+
   console.log('unexpected turn id, ', turn); 
   return cube;
 }
@@ -243,48 +251,69 @@ function FaceToColor(c) {
   console.log('unexpected turn id, ', turn); 
 }
 
+// Assumes nodes are already oriented correctly and does not reorient them.
+function BfsExplorNode(src, dst, turn, nodes, node_set, links, links_set) {
+  // Add newly discovered nodes to the node set if not already present. We add
+  // both the src and dest because sometimes nodes are discovered via reverse
+  // turns which means the src is the one and other times nodes are discovered
+  // by forward turns and dst is the new one.
+  if (!node_set.has(src)) {
+    nodes.push({size: 11, id: src, color: '#1f77b4'});
+    node_set.add(src);
+  }
+  if (!node_set.has(dst)) {
+    nodes.push({size: 11, id: dst, color: '#1f77b4'});
+    node_set.add(dst);
+  }
+
+  // Add newly discovered links to the link set if not already present. Links
+  // are eventually discovered in both directions so we need to dedupe to avoid
+  // doubling all links. In ignore_orientation mode, the arrow direction is
+  // meaningless since mirroring switches clockwise and counterclockwise but I
+  // choose not to care about that.
+  let link_key = src + '-' + dst + '-' + turn;
+  if (!links_set.has(link_key)) {
+    links.push({
+      source: src,
+      target: dst,
+      label: turn,
+    });
+    links_set.add(link_key);
+  }
+    
+}
+
 // Explores the state space starting from Cube.
 // Returns an object containing Nodes and Links, appropriate for use with
 // d3.js's force simulation library.
-function BuildGraph(cube, ignore_orientation) {
+function BuildGraph(cube, ignore_orientation, htm) {
   if (ignore_orientation) {
     cube = NormalizeOrientation(cube);
   }
   let i = 0;
   let nodes = [{size: 11, id: cube, color: '#ff7f0e'}];
-  let node_set = new Set(); // all nodes so far and their ints
+  let node_set = new Set(); // all nodes so far
   let links = [];
+  let links_set = new Set(); // all links so far.
 
   node_set.add(cube);
   while (i < nodes.length) {
-    // If the node being explored is was mirrored during normalization, our
-    // turns will be applied backwards. We could implement reverse quarter turns
-    // but it's easier to just mirror the node being explored and go from there.
-    let to_explore = nodes[i].mirrored ? Mirror(nodes[i].id) : nodes[i].id;
-    for (let c of ['b', 'l', 'u', 'r', 'd', 'f']) {
-      if (CanDoTurn(to_explore, c)) {
-        let turned = DoTurn(to_explore, c);
-        let mirrored = false;
-        if (ignore_orientation) {
-          let t1 = NormalizeOrientationNoMirror(turned);
-          let t2 = NormalizeOrientationNoMirror(Mirror(turned));
-          if (t1 < t2) {
-            turned = t1;
-            mirror = false;
-          } else {
-            turned = t2;
-            mirrored = true;
-          }
+    for (let turn of ['b', 'l', 'u', 'r', 'd', 'f']) {
+      let src = nodes[i].id;
+      if (CanDoTurn(src, turn)) {
+        let turned = DoTurn(src, turn);
+        BfsExplorNode(src, (ignore_orientation ? NormalizeOrientation(turned) : turned) , turn, nodes, node_set, links, links_set);
+
+        // if htm, we create edges for double turns.
+        turned = DoTurn(turned, turn);
+        if (htm) {
+          BfsExplorNode(src, (ignore_orientation ? NormalizeOrientation(turned) : turned) , turn, nodes, node_set, links, links_set);
         }
-        if (!node_set.has(turned)) {
-          nodes.push({size: 11, id: turned, color: '#1f77b4', mirrored: mirrored});
-          node_set.add(turned);
-        }
-        links.push({
-          source: nodes[i].id,
-          target: turned,
-          label: c,
-        });
+
+        // When adding reverse turns, we invert the src/dst arguments to make
+        // the arrow point the correct way.
+        turned = DoTurn(turned, turn);
+        BfsExplorNode((ignore_orientation ? NormalizeOrientation(turned) : turned), src, turn, nodes, node_set, links, links_set);
       }
     }
     i++;
@@ -486,7 +515,6 @@ function drawGraph(graph, use_colors) {
     .style('stroke','none');
 
   let ratio = graph.links.length / graph.nodes.length;
-  // TODO(jmerm): set link length/strength depending on density of edges?
   simulation = d3.forceSimulation()
     .force('link', d3.forceLink().distance(60*ratio).strength(2).id(function(d) { return d.id; }))
     .force('charge', d3.forceManyBody().strength(-400))
@@ -501,7 +529,7 @@ function drawGraph(graph, use_colors) {
     .attr('class', 'link')
     .style('stroke', function(d){ return use_colors ? FaceToColor(d.label) : black; })
     .attr('stroke-width', 1.5)
-    .on("mousemove", focusLink)
+    .on('mousemove', focusLink)
     .on('mouseout', unfocusLink) 
   .attr('marker-end', function(d) { return (d.source == d.target ? '' : 'url(#arrowhead)');});
 
@@ -660,7 +688,7 @@ const named_cubes = new Map([
   ['alcatraz', 0x108400F43F87A1n],
 ]);
 
-function TryLoadGraph(str, ignore_orientation) {
+function TryLoadGraph(str, ignore_orientation, htm) {
   // check if it is the name of a named cube
   if (named_cubes.has(str.toLowerCase())) {
     id = named_cubes.get(str.toLowerCase());
@@ -674,32 +702,33 @@ function TryLoadGraph(str, ignore_orientation) {
     }
   }
 
-  if (id < 0) {
-    alert('input must be between 0 and (2^57)-1)');        
+  if (id < 0 || id >= (1n << 54n)) {
+    alert('input must be between 0 and (2^54)-1)');
     return;
   }
 
   d3.selectAll('svg').remove();
-  drawGraph(BuildGraph(id, ignore_orientation), /*use_color=*/ !ignore_orientation);
+  drawGraph(BuildGraph(id, ignore_orientation, htm), /*use_color=*/ !ignore_orientation);
 
   // Update the URL to match the users's input so it can be copy-pasted more
   // easily.
-  let params = '?id=' + str + (ignore_orientation ? '&ignore_orientation=true' : '');
+  let params = '?id=' + str + (ignore_orientation ? '&ignore_orientation=true' : '') + (htm ? '&metric=htm' : '');
   window.history.pushState({'html':'index.html'},'', '/bandaged-cube-explorer' + params);
 }
 
 function LoadGraph(ele) {
   let ignore_orientation = document.getElementById('ignore_orientation').checked;
+  let htm = document.getElementById('htm').checked;
   if (ele.id === 'input' && event.key !== 'Enter') {
     // The user is typing - do not update the graph.
     return;
   } else if (ele.id === 'input') {
     // The user has pressed enter in the input box - check their other
     // selections and then load the graph.
-    TryLoadGraph(ele.value, ignore_orientation);
-  } else if (ele.name === 'orientation'){
+    TryLoadGraph(ele.value, ignore_orientation, htm);
+  } else {
     let id = document.getElementById('input').value;
-    TryLoadGraph(id, ignore_orientation);
+    TryLoadGraph(id, ignore_orientation, htm);
   }
 }
 
@@ -742,8 +771,20 @@ window.onload = function() {
   } else {
     document.getElementById('fixed_orientation').checked = true;
   }
+  
+  // Check which metric the user wants to use.
+  let htm = false;
+  if (urlParams.has('metric') 
+    && urlParams.get('metric').toLowerCase() === 'htm') {
+    htm = true;
+  }
+  if (htm) {
+    document.getElementById('htm').checked = true;
+  } else {
+    document.getElementById('qtm').checked = true;
+  }
 
-  // Initialize page.
-  TryLoadGraph(id, ignore_orientation);
+  // Initialize page based on the user's selection.
+  TryLoadGraph(id, ignore_orientation, htm);
 }
 

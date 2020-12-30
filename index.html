@@ -5,9 +5,17 @@
   <script src="main.js"></script>
   <span>
     Bandaged Cube ID: <input type="text" id="input" value="" onkeydown="LoadGraph(this)"><br>
+
+    <div> Orientation </div>
     <input type="radio" id="fixed_orientation" name="orientation" value="fixed_orientation" onchange="LoadGraph(this)">
     <label for="fixed_orientation">Fixed orientation</label><br>
     <input type="radio" id="ignore_orientation" name="orientation" value="ignore_orientation" onchange="LoadGraph(this)">
     <label for="ignore_orientation">Ignore orientation</label><br>
+
+    <div> Metric </div>
+    <input type="radio" id="qtm" name="metric" value="qtm" onchange="LoadGraph(this)">
+    <label for="qtm">qtm</label><br>
+    <input type="radio" id="htm" name="metric" value="htm" onchange="LoadGraph(this)">
+    <label for="htm">htm</label><br>
   </span>
 </body>

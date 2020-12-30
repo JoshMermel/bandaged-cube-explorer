@@ -530,7 +530,7 @@ function drawGraph(graph, use_colors) {
     .attr('class', 'link')
     .style('stroke', function(d){ return use_colors ? FaceToColor(d.label) : black; })
     .attr('stroke-width', 1.5)
-    .on('mousemove', focusLink)
+    .on('mousemove', focusLink(use_colors))
     .on('mouseout', unfocusLink) 
   .attr('marker-end', function(d) { return (d.source == d.target ? '' : 'url(#arrowhead)');});
 
@@ -585,15 +585,18 @@ function unfocus() {
 // Helpers for when an edge is moused-over.
 // TODO(jmerm): consider transparant edges over the regular ones for larger
 // hitboxes.
-function focusLink(d) {
-  let textbox = svg.append('text')
-    .attr('x', (d.source.x + d.target.x) / 2)
-    .attr('y', (d.source.y + d.target.y) / 2)
-    .style('font-size', '20px')
-    .attr('class', 'label')
-    .text(d.label.toUpperCase());
-  d3.select(this).attr('stroke-width', 5)
-
+function focusLink(use_colors) {
+  return function(d) {
+    if (use_colors) {
+    let textbox = svg.append('text')
+      .attr('x', (d.source.x + d.target.x) / 2)
+      .attr('y', (d.source.y + d.target.y) / 2)
+      .style('font-size', '20px')
+      .attr('class', 'label')
+      .text(d.label.toUpperCase());
+    }
+    d3.select(this).attr('stroke-width', 5)
+  }
 }
 function unfocusLink(d) {
   svg.selectAll('*.label').remove();

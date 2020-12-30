@@ -253,17 +253,17 @@ function FaceToColor(c) {
 }
 
 // Assumes nodes are already oriented correctly and does not reorient them.
-function BfsExplorNode(src, dst, turn, nodes, node_set, links, links_set) {
+function BfsExplorNode(src, dst, turn, nodes, node_set, links, links_set, depth) {
   // Add newly discovered nodes to the node set if not already present. We add
   // both the src and dest because sometimes nodes are discovered via reverse
   // turns which means the src is the one and other times nodes are discovered
   // by forward turns and dst is the new one.
   if (!node_set.has(src)) {
-    nodes.push({size: 11, id: src, color: '#1f77b4'});
+    nodes.push({size: 11, id: src, color: '#1f77b4', depth: depth});
     node_set.add(src);
   }
   if (!node_set.has(dst)) {
-    nodes.push({size: 11, id: dst, color: '#1f77b4'});
+    nodes.push({size: 11, id: dst, color: '#1f77b4', depth: depth});
     node_set.add(dst);
   }
 
@@ -291,7 +291,7 @@ function BuildGraph(cube, ignore_orientation, htm) {
     cube = NormalizeOrientation(cube);
   }
   let i = 0;
-  let nodes = [{size: 11, id: cube, color: '#ff7f0e'}];
+  let nodes = [{size: 11, id: cube, color: '#ff7f0e', depth : 0}];
   let node_set = new Set(); // all nodes so far
   let links = [];
   let links_set = new Set(); // all links so far.
@@ -300,20 +300,21 @@ function BuildGraph(cube, ignore_orientation, htm) {
   while (i < nodes.length) {
     for (let turn of ['b', 'l', 'u', 'r', 'd', 'f']) {
       let src = nodes[i].id;
+      let depth = nodes[i].depth;
       if (CanDoTurn(src, turn)) {
         let turned = DoTurn(src, turn);
-        BfsExplorNode(src, (ignore_orientation ? NormalizeOrientation(turned) : turned) , turn, nodes, node_set, links, links_set);
+        BfsExplorNode(src, (ignore_orientation ? NormalizeOrientation(turned) : turned) , turn, nodes, node_set, links, links_set, depth+1);
 
         // if htm, we create edges for double turns.
         turned = DoTurn(turned, turn);
         if (htm) {
-          BfsExplorNode(src, (ignore_orientation ? NormalizeOrientation(turned) : turned) , turn, nodes, node_set, links, links_set);
+          BfsExplorNode(src, (ignore_orientation ? NormalizeOrientation(turned) : turned) , turn, nodes, node_set, links, links_set, depth+1);
         }
 
         // When adding reverse turns, we invert the src/dst arguments to make
         // the arrow point the correct way.
         turned = DoTurn(turned, turn);
-        BfsExplorNode((ignore_orientation ? NormalizeOrientation(turned) : turned), src, turn, nodes, node_set, links, links_set);
+        BfsExplorNode((ignore_orientation ? NormalizeOrientation(turned) : turned), src, turn, nodes, node_set, links, links_set, depth+1);
       }
     }
     i++;
@@ -444,7 +445,7 @@ function DrawLegendFace(cube, xoffset, yoffset, scale, bonds, color, use_colors)
   }
 }
 
-function DrawLegend(xoffset, yoffset, scale, cube, use_colors) {
+function DrawLegend(xoffset, yoffset, scale, cube, use_colors, depth) {
   console.log('drawing legend for cube ', cube);
   // Unscaled offsets of how the faces are laid out relative to one another.
   // Each face is a 3x3 square before scaling.
@@ -467,20 +468,20 @@ function DrawLegend(xoffset, yoffset, scale, cube, use_colors) {
   // Draw metadata about the cube.
   let textbox = svg_legend.append('text')
     .attr('x', 7 * scale + xoffset)
-    .attr('y', 7 * scale + yoffset)
+    .attr('y', 6.25 * scale + yoffset)
     .style('font-size', '20px')
     .attr('class', 'legend');
 
   textbox.append('tspan')
    .attr('x', 7 * scale + xoffset)
-  .attr('dy', '1.4em')
-  .text('id: 0x' + cube.toString(16));
+    .attr('dy', '1.4em')
+    .text('id: 0x' + cube.toString(16));
 
-  // TODO(jmerm): more metadata
-//  textbox.append('tspan')
-//  .attr('x', 7 * scale + xoffset)
-//  .attr('dy', '1.4em')
-//  .text('second_line');
+  let htm = document.getElementById('htm').checked;
+  textbox.append('tspan')
+    .attr('x', 7 * scale + xoffset)
+    .attr('dy', '1.4em')
+    .text('distance from solved shape in ' + (htm ? 'htm' : 'qtm') + ': ' + depth);
 }
 
 ////////////////////////////////////////////////////
@@ -575,7 +576,7 @@ function focus(use_colors) {
     let scale = Math.min(width / 4, height / 3) / 12
     let xoffset = (d.x > width / 2) ? 50 : width - (12 * scale) - 50;
     let yoffset = (d.y > height / 2) ? 50 : height - (9 * scale) - 50;
-    DrawLegend(xoffset, yoffset, scale, d.id, use_colors);
+    DrawLegend(xoffset, yoffset, scale, d.id, use_colors, d.depth);
   }
 }
 function unfocus() {

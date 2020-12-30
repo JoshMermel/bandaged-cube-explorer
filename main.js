@@ -283,7 +283,7 @@ function BuildGraph(cube, ignore_orientation) {
         links.push({
           source: nodes[i].id,
           target: turned,
-          color: FaceToColor(c)
+          label: c,
         });
       }
     }
@@ -434,12 +434,21 @@ function DrawLegend(xoffset, yoffset, scale, cube, use_colors) {
   }
 
   // Draw metadata about the cube.
-  svg_legend.append('text')
+  let textbox = svg_legend.append('text')
     .attr('x', 7 * scale + xoffset)
-    .attr('y', 8 * scale + yoffset)
-    .text('id: 0x' + cube.toString(16))
+    .attr('y', 7 * scale + yoffset)
     .style('font-size', '20px')
     .attr('class', 'legend');
+
+  textbox.append('tspan')
+   .attr('x', 7 * scale + xoffset)
+  .attr('dy', '1.4em')
+  .text('id: 0x' + cube.toString(16));
+
+  textbox.append('tspan')
+  .attr('x', 7 * scale + xoffset)
+  .attr('dy', '1.4em')
+  .text('second_line');
 }
 
 
@@ -485,14 +494,15 @@ function drawGraph(graph, use_colors) {
   let nodes = graph.nodes;
   let nodeById = d3.map(nodes, function(d) { return d.id; });
 
-
   let links = svg.selectAll('.link')
     .data(graph.links)
     .enter().append('path')
     .attr('class', 'link')
-    .style('stroke', function(d){ return use_colors ? d.color : black; })
+    .style('stroke', function(d){ return use_colors ? FaceToColor(d.label) : black; })
     .attr('stroke-width', 1.5)
-      .attr('marker-end', function(d) { return (d.source == d.target ? '' : 'url(#arrowhead)');});
+    .on("mousemove", focusLink)
+    .on('mouseout', unfocusLink) 
+  .attr('marker-end', function(d) { return (d.source == d.target ? '' : 'url(#arrowhead)');});
 
   let node = svg.selectAll('.node')
      // Use presence size field to distinguish real nodes from intermediate ones.
@@ -542,23 +552,39 @@ function unfocus() {
   svg_legend.selectAll('*.legend').remove();
 }
 
+// Helpers for when an edge is moused-over
+function focusLink(d) {
+  let textbox = svg.append('text')
+    .attr('x', (d.source.x + d.target.x) / 2)
+    .attr('y', (d.source.y + d.target.y) / 2)
+    .style('font-size', '20px')
+    .attr('class', 'label')
+    .text(d.label.toUpperCase());
+  d3.select(this).attr('stroke-width', 5)
+
+}
+function unfocusLink(d) {
+  svg.selectAll('*.label').remove();
+  d3.select(this).attr('stroke-width', 1.5)
+}
+
 // The way we draw self links is a hack where we draw a big arc from the center
 // of the circle to a point that's extremely close by. Modifying this point
 // modifies the angle that the self-edge exits the circle. We can use this to
 // avoid multiple self edges from the same node overlapping.
-function ColorToAdjustment(c) {
+function LabelToAdjustment(c) {
   switch(c) {
-    case blue:
+    case 'b':
       return {x: 1, y: 1};
-    case orange:
+    case 'l':
       return {x: -1, y: 1};
-    case black:
+    case 'u':
       return {x: 2, y: 0};
-    case red:
+    case 'r':
       return {x: -2, y: 0};
-    case yellow:
+    case 'd':
       return {x: 1, y: -1};
-    case green:
+    case 'f':
       return {x: -1, y: -1};
   }
   console.log('unexpected turn id, ', turn); 
@@ -568,7 +594,7 @@ function ColorToAdjustment(c) {
 // https://stackoverflow.com/a/17687907
 function positionLink(d) {
   if (d.source == d.target) {
-    let adjustment = ColorToAdjustment(d.color);
+    let adjustment = LabelToAdjustment(d.label);
     return 'M' + d.source.x+ ',' + d.source.y+ 'A20,20 0,1,0 '  + (d.target.x + adjustment.x) + ',' + (d.target.y + adjustment.y);
   }
   return 'M' + d.source.x + ',' + d.source.y

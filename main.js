@@ -32,7 +32,8 @@ var width = window.innerWidth,
 // Generic Helpers //
 /////////////////////
 
-// Takes a list of BigInt offsets and returns a corresponding bitset as a BigInt.
+// Takes a list of BigInt offsets and returns a corresponding bitset as a
+// BigInt.
 function MakeBitSet(lst) {
   let ret = 0n;
   for (let i of lst) {
@@ -64,7 +65,7 @@ function Min(a, b) {
   return b;
 }
 
-// cycles bits according to perms.
+// Cycles bits according to perms.
 // Could maybe be optimized by some special purpose code for each permutation
 // from http://programming.sirrida.de/bit_perm.html#calculator
 function ApplyPermutations(cube, permutations) {
@@ -81,7 +82,7 @@ function ApplyPermutations(cube, permutations) {
   return cube;
 }
 
-// Performs a Y rotation of the cube
+// Performs a Y rotation of the cube.
 function RotY(cube) {
   return ApplyPermutations(cube, 
     [[0n,4n,11n,7n], [1n,9n,10n,2n], [3n,6n,8n,5n], [12n,14n,20n,18n],
@@ -90,7 +91,7 @@ function RotY(cube) {
       [42n,46n,53n,49n], [43n,51n,52n,44n], [45n,48n,50n,47n]]);
 }
 
-// Performs a Z rotation of the cube
+// Performs a Z rotation of the cube.
 function RotZ(cube) {
   return ApplyPermutations(cube, 
     [[0n,14n,43n,33n], [1n,35n,42n,12n], [2n,4n,46n,44n], [3n,25n,45n,23n],
@@ -170,9 +171,7 @@ function CanDoTurn(cube, turn) {
 
 // CanDoTurn must be called before calling this method.
 // Cube is a BigInt bitset. Turn is one of {b,l,u,r,d,f}
-// Returns a bitset representing the cube after that turn has been performed
-// Turns can be thought of as bit permutation that move bonds to new locations
-// which means I can use my favorite tool (
+// Returns a bitset representing the cube after that turn has been performed.
 function DoTurn(cube, turn) {
   let ret = 0;
   switch (turn) {
@@ -224,7 +223,7 @@ function DoTurn(cube, turn) {
   return cube;
 }
 
-// colors
+// Colors
 let blue = '#3b6ecc';
 let orange = '#ff5900';
 let black = '#000000';
@@ -233,6 +232,8 @@ let red = '#b90000';
 let yellow = '#ffd500';
 let green = '#3bcc64';
 
+// For figuring out which colors edges are. The white face has black edges so
+// they stand out against the background.
 function FaceToColor(c) {
   switch(c) {
     case 'b':
@@ -280,7 +281,6 @@ function BfsExplorNode(src, dst, turn, nodes, node_set, links, links_set) {
     });
     links_set.add(link_key);
   }
-    
 }
 
 // Explores the state space starting from Cube.
@@ -400,6 +400,8 @@ function DrawLegendColor(xoffset, yoffset, scale, color, present) {
 function DrawLegendFace(cube, xoffset, yoffset, scale, bonds, color, use_colors) {
   // Determines which stickers are fused to the center so they can be colored
   // in.
+  // This can be broken is weird situation like {5,2,0} present. I don't care
+  // enough to fix this since that input is arguably malformed anyway.
   let center_colors = [
     (GetBit(cube, bonds[0]) && GetBit(cube, bonds[3])) || (GetBit(cube, bonds[2]) && GetBit(cube, bonds[5])),
     GetBit(cube, bonds[3]),
@@ -480,7 +482,6 @@ function DrawLegend(xoffset, yoffset, scale, cube, use_colors) {
 //  .attr('dy', '1.4em')
 //  .text('second_line');
 }
-
 
 ////////////////////////////////////////////////////
 // Setting up the parameters for the graph layout //
@@ -581,7 +582,9 @@ function unfocus() {
   svg_legend.selectAll('*.legend').remove();
 }
 
-// Helpers for when an edge is moused-over
+// Helpers for when an edge is moused-over.
+// TODO(jmerm): consider transparant edges over the regular ones for larger
+// hitboxes.
 function focusLink(d) {
   let textbox = svg.append('text')
     .attr('x', (d.source.x + d.target.x) / 2)
@@ -629,7 +632,6 @@ function positionLink(d) {
   return 'M' + d.source.x + ',' + d.source.y
        + 'L' + d.target.x + ',' + d.target.y;
 }
-
 function positionNode(d) {
   return 'translate(' + d.x + ',' + d.y + ')';
 }
@@ -639,7 +641,6 @@ function dragstarted(d) {
   d.fx = d.x;
   d.fy = d.y;
 }
-
 function dragged(d) {
   // I don't know why I can't use d3.event.x and d3.event.y here but grabbing
   // the mouse coordinates instead seems to work.
@@ -647,7 +648,6 @@ function dragged(d) {
   d.fx = coordinates[0];
   d.fy = coordinates[1];
 }
-
 function dragended(d) {
   if (!d3.event.active) simulation.alphaTarget(0);
   d.fx = null;
@@ -787,4 +787,3 @@ window.onload = function() {
   // Initialize page based on the user's selection.
   TryLoadGraph(id, ignore_orientation, htm);
 }
-

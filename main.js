@@ -428,9 +428,18 @@ function DrawLegend(xoffset, yoffset, scale, cube, use_colors) {
     {x:3, y:6, cuts:[43n, 42n, 35n, 34n, 33n, 22n, 21n, 14n, 13n, 12n,  1n,  0n, 24n], color: green},  // F
   ]
 
+  // Draw the legend itself
   for (let face of FaceData) {
     DrawLegendFace(cube, face.x * scale + xoffset, face.y * scale + yoffset, scale, face.cuts, face.color, use_colors);
   }
+
+  // Draw metadata about the cube.
+  svg_legend.append('text')
+    .attr('x', 7 * scale + xoffset)
+    .attr('y', 8 * scale + yoffset)
+    .text('id: 0x' + cube.toString(16))
+    .style('font-size', '20px')
+    .attr('class', 'legend');
 }
 
 

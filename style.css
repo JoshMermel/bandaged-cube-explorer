@@ -15,3 +15,6 @@ svg {
   fill: none;
   stroke: #bbb;
 }
+
+body { display: inline-block; }
+

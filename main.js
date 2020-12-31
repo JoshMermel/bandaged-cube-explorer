@@ -574,8 +574,8 @@ function drawGraph(graph, use_colors) {
 function focus(use_colors) {
   return function(d) {
     let scale = Math.min(width / 4, height / 3) / 12
-    let xoffset = (d.x > width / 2) ? 50 : width - (12 * scale) - 50;
-    let yoffset = (d.y > height / 2) ? 50 : height - (9 * scale) - 50;
+    let xoffset = 50;
+    let yoffset = (d.y > height / 2) ? 100 : height - (9 * scale) - 50;
     DrawLegend(xoffset, yoffset, scale, d.id, use_colors, d.depth);
   }
 }

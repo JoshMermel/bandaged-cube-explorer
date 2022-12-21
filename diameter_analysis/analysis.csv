@@ -1,4 +1,4 @@
-signature (qtm),vertices,edges (qtm),diameter (qtm),example antipodes (qtm),radius (qtm),example center (qtm),diameter (htm),example antipodes (htm),radius (htm),example center (htm)
+signature,vertices,edges (qtm),diameter (qtm),example antipodes (qtm),radius (qtm),example center (qtm),diameter (htm),example antipodes (htm),radius (htm),example center (htm)
 0x10840080200C21,92176,154272,47,0x4088100200c44 => 0x88c0100204408,28,0xe400100200842,36,0x8890200003440 => 0x3050800006820,21,0xc000080400c46
 0x10840084220C21,89904,145744,54,0x306000c4204820 => 0x208008c4200c18,31,0x10864084200184,38,0x88c0086002380 => 0x8f8004421100,24,0x2300084224421
 0x10840080800423,85960,141952,49,0x11080310000c08 => 0x26200808000c4,29,0x210c0100009840,37,0x1030a00108408 => 0x10221000185040,22,0x210003100018c0

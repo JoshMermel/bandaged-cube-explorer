@@ -4,3 +4,5 @@ puzzles.
 To use, run `cargo run --release`. 
 
 To analyze a specific puzzle, modify the list in `main()`
+
+For more info see https://joshmermelstein.com/bandaged-cube-diameter/

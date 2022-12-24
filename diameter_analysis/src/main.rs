@@ -1,3 +1,8 @@
+#![warn(
+    clippy::all,
+    clippy::pedantic,
+)]
+// Run with `cargo clippy --all -- -D warnings`.
 #![deny(missing_docs)]
 //! Utils for analyzing the graphs of bandaged 3x3x3 Configurations.
 
@@ -10,12 +15,12 @@ lazy_static! {
     /// Each bitset represnts the set of bonds that block a specific face. Bitsets can be looked up
     /// using Blockers::get.
     static ref BLOCKERS: Blockers = Blockers::Blockers([
-        make_bitset(vec![33, 34, 35, 36, 37, 38, 39, 40, 41]), // U
-        make_bitset(vec![0, 5, 10, 21, 26, 31, 42, 47, 52]),   // R
-        make_bitset(vec![2, 3, 4, 23, 24, 25, 44, 45, 46]),    // F
-        make_bitset(vec![12, 13, 14, 15, 16, 17, 18, 19, 20]), // D
-        make_bitset(vec![1, 6, 11, 22, 27, 32, 43, 48, 53]),   // L
-        make_bitset(vec![7, 8, 9, 28, 29, 30, 49, 50, 51]),    // B
+        make_bitset(&[33, 34, 35, 36, 37, 38, 39, 40, 41]), // U
+        make_bitset(&[0, 5, 10, 21, 26, 31, 42, 47, 52]),   // R
+        make_bitset(&[2, 3, 4, 23, 24, 25, 44, 45, 46]),    // F
+        make_bitset(&[12, 13, 14, 15, 16, 17, 18, 19, 20]), // D
+        make_bitset(&[1, 6, 11, 22, 27, 32, 43, 48, 53]),   // L
+        make_bitset(&[7, 8, 9, 28, 29, 30, 49, 50, 51]),    // B
     ]);
 
     static ref QTM: Metric = Metric::Quarter([TurnType::Forward, TurnType::Backward]);
@@ -75,19 +80,18 @@ mod tests {
     #[test]
     fn test_make_bitset() {
         use crate::make_bitset;
-        assert_eq!(1, make_bitset(vec![0]));
-        assert_eq!(8, make_bitset(vec![3]));
-        assert_eq!(9, make_bitset(vec![0, 3]));
+        assert_eq!(1, make_bitset(&[0]));
+        assert_eq!(8, make_bitset(&[3]));
+        assert_eq!(9, make_bitset(&[0, 3]));
     }
 
     #[test]
     fn test_can_turn_face() {
-       use crate::can_turn_face;
-       use crate::Face;
-       assert_eq!(true, can_turn_face(1, Face::U)); 
-       assert_eq!(false, can_turn_face(1, Face::R)); 
+        use crate::can_turn_face;
+        use crate::Face;
+        assert_eq!(true, can_turn_face(1, Face::U));
+        assert_eq!(false, can_turn_face(1, Face::R));
     }
-
 
     #[test]
     fn test_get_bit() {
@@ -106,30 +110,26 @@ mod tests {
 
     #[test]
     fn test_do_turn() {
-        use crate::do_turn;
         // TODO(jmerm): this.
-        assert_eq!(1,1);
+        assert_eq!(1, 1);
     }
 
     #[test]
     fn test_do_orientation() {
-        use crate::do_orientation;
         // TODO(jmerm): this.
-        assert_eq!(1,1);
+        assert_eq!(1, 1);
     }
 
     #[test]
     fn test_normalize_orientation() {
-        use crate::normalize_orientation;
         // TODO(jmerm): this.
-        assert_eq!(1,1);
+        assert_eq!(1, 1);
     }
 
     #[test]
     fn test_breadth_first_search() {
-        use crate::breadth_first_search;
         // TODO(jmerm): this.
-        assert_eq!(1,1);
+        assert_eq!(1, 1);
     }
 }
 
@@ -144,14 +144,15 @@ fn get_bit(cube: i64, idx: i64) -> bool {
 
 /// Sets the bit at index |idx| to match the truthiness of |val|.
 fn set_bit(cube: i64, idx: i64, val: bool) -> i64 {
-    match val {
-        true => cube | (1 << idx),
-        false => cube & !(1 << idx),
+    if val {
+        cube | (1 << idx)
+    } else {
+        cube & !(1 << idx)
     }
 }
 
 /// Takes a vector of offsets and encodes them into an i64 bitset.
-fn make_bitset(indices: Vec<i64>) -> i64 {
+fn make_bitset(indices: &[i64]) -> i64 {
     indices.iter().fold(0, |ret, i| ret | 1 << i)
 }
 
@@ -253,7 +254,7 @@ fn do_turn(cube: i64, turn: &Turn) -> i64 {
 // Utils for reorienting the cube //
 ////////////////////////////////////
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, Copy, Clone)]
 enum Orientation {
     Y,
     Z,
@@ -329,13 +330,12 @@ struct Node {
 }
 
 /// Helper for saying whether turning |face| is unnecessary because the result has already been found.
-fn is_wasteful(face: &Face, last_face: &Option<Face>, metric: &Metric) -> bool {
+fn is_wasteful(face: Face, last_face: Option<Face>, metric: &Metric) -> bool {
     match (metric, face, last_face) {
         // In HTM, there's no need to ever turn a face twice in a row.
-        (Metric::Half(_), _, None) => false,
-        (Metric::Half(_), a, Some(b)) => a == b,
         // In QTM we can't take the same shortcut.
-        (Metric::Quarter(_), _, _) => false,
+        (Metric::Half(_), _, None) | (Metric::Quarter(_), _, _) => false,
+        (Metric::Half(_), a, Some(b)) => a == b,
     }
 }
 
@@ -353,7 +353,7 @@ fn breadth_first_search(initial: i64, metric: &Metric) -> HashMap<i64, u16> {
     }) = queue.pop_front()
     {
         for face in Face::iterator() {
-            if can_turn_face(cube, *face) && !is_wasteful(face, &last_face, metric) {
+            if can_turn_face(cube, *face) && !is_wasteful(*face, last_face, metric) {
                 for turn_type in metric.turns() {
                     let turned = do_turn(cube, &Turn::Turn(*face, *turn_type));
                     let _ = seen_nodes.entry(turned).or_insert_with(|| {
@@ -407,7 +407,7 @@ fn analyze(cube: i64, metric: &Metric) {
 
         if *length < radius {
             radius = *length;
-            center = **val
+            center = **val;
         }
     }
 
@@ -420,11 +420,11 @@ fn analyze(cube: i64, metric: &Metric) {
 fn main() {
     // analyze(0x3DE00000C00, &QTM);
     for cube in [
-        0x84018C200860,
-        0x108400802007BD,
-        0x230008080002D,
-        0x100580842D8421,
-        0x1080188C09C46,
+        0x8401_8C20_0860,
+        0x10_8400_8020_07BD,
+        0x2_3000_8080_002D,
+        0x10_0580_842D_8421,
+        0x1_0801_88C0_9C46,
     ] {
         analyze(cube, &HTM);
     }

@@ -1,7 +1,4 @@
-#![warn(
-    clippy::all,
-    clippy::pedantic,
-)]
+#![warn(clippy::all, clippy::pedantic)]
 // Run with `cargo clippy --all -- -D warnings`.
 #![deny(missing_docs)]
 //! Utils for analyzing the graphs of bandaged 3x3x3 Configurations.
@@ -9,7 +6,6 @@
 use lazy_static::lazy_static;
 use std::cmp;
 use std::collections::{HashMap, VecDeque};
-use std::slice::Iter;
 
 lazy_static! {
     /// Each bitset represnts the set of bonds that block a specific face. Bitsets can be looked up
@@ -72,6 +68,8 @@ lazy_static! {
              vec![47, 48], vec![49, 51], vec![52, 53],
         ]),
     ]);
+
+    static ref FACES: [Face; 6] = [Face::U, Face::R, Face::F, Face::D, Face::L, Face::B];
 }
 
 #[cfg(test)]
@@ -159,16 +157,17 @@ fn make_bitset(indices: &[i64]) -> i64 {
 // Could maybe be optimized by some special purpose code for each permutation
 // from http://programming.sirrida.de/bit_perm.html#calculator
 /// cycles bits according to perms.
-fn apply_permutation(mut cube: i64, permutations: &Vec<Vec<i64>>) -> i64 {
-    for perm in permutations {
-        if !perm.is_empty() {
+fn apply_permutation(mut cube: i64, permutations: &[Vec<i64>]) -> i64 {
+    permutations
+        .iter()
+        .filter(|p| !p.is_empty())
+        .for_each(|perm| {
             let start = get_bit(cube, perm[0]);
             for i in 0..perm.len() - 1 {
                 cube = set_bit(cube, perm[i], get_bit(cube, perm[i + 1]));
             }
             cube = set_bit(cube, perm[perm.len() - 1], start);
-        }
-    }
+        });
     cube
 }
 
@@ -199,15 +198,6 @@ enum Face {
     D,
     L,
     B,
-}
-
-// TODO(jmerm): should this be moved to the lazy_static block
-impl Face {
-    /// An iterator to loop over all Faces.
-    pub fn iterator() -> Iter<'static, Face> {
-        static FACES: [Face; 6] = [Face::U, Face::R, Face::F, Face::D, Face::L, Face::B];
-        FACES.iter()
-    }
 }
 
 /// All the ways a face of Rubik's cube can turn.
@@ -341,10 +331,8 @@ fn is_wasteful(face: Face, last_face: Option<Face>, metric: &Metric) -> bool {
 
 /// Returns a map from each reachable state to the shorest path from |initial| to that state
 fn breadth_first_search(initial: i64, metric: &Metric) -> HashMap<i64, u16> {
-    let mut seen_nodes = HashMap::new();
-    seen_nodes.insert(initial, 0);
-    let mut queue = VecDeque::new();
-    queue.push_back(Node::builder().cube(initial).build());
+    let mut seen_nodes = HashMap::from_iter([(initial, 0)]);
+    let mut queue = VecDeque::from_iter([Node::builder().cube(initial).build()]);
 
     while let Some(Node {
         cube,
@@ -352,20 +340,21 @@ fn breadth_first_search(initial: i64, metric: &Metric) -> HashMap<i64, u16> {
         last_face,
     }) = queue.pop_front()
     {
-        for face in Face::iterator() {
-            if can_turn_face(cube, *face) && !is_wasteful(*face, last_face, metric) {
-                for turn_type in metric.turns() {
-                    let turned = do_turn(cube, &Turn::Turn(*face, *turn_type));
-                    let _ = seen_nodes.entry(turned).or_insert_with(|| {
-                        // println!("adding {} at depth {}", turned, depth+1);
-                        queue.push_back(Node {
-                            cube: turned,
-                            depth: depth + 1,
-                            last_face: Some(*face),
-                        });
-                        depth + 1
+        for face in FACES
+            .into_iter()
+            .filter(|face| can_turn_face(cube, *face) && !is_wasteful(*face, last_face, metric))
+        {
+            for turn_type in metric.turns() {
+                let turned = do_turn(cube, &Turn::Turn(face, *turn_type));
+                let _ = seen_nodes.entry(turned).or_insert_with(|| {
+                    // println!("adding {} at depth {}", turned, depth+1);
+                    queue.push_back(Node {
+                        cube: turned,
+                        depth: depth + 1,
+                        last_face: Some(face),
                     });
-                }
+                    depth + 1
+                });
             }
         }
     }

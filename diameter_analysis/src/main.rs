@@ -4,6 +4,7 @@
 //! Utils for analyzing the graphs of bandaged 3x3x3 Configurations.
 
 use lazy_static::lazy_static;
+use rayon::iter::*;
 use std::cmp;
 use std::collections::{HashMap, VecDeque};
 
@@ -362,6 +363,29 @@ fn breadth_first_search(initial: i64, metric: &Metric) -> HashMap<i64, u16> {
     seen_nodes
 }
 
+#[derive(Clone)]
+struct Stats {
+    max_dist: u16,
+    max_start: i64,
+    max_end: i64,
+    radius: u16,
+    center: i64,
+}
+impl Stats {
+    fn join(&self, mut sum: Self) -> Self {
+        if self.max_dist > sum.max_dist {
+            sum.max_dist = self.max_dist;
+            sum.max_end = self.max_end;
+            sum.max_start = self.max_start;
+        }
+        if self.radius < sum.radius {
+            sum.radius = self.radius;
+            sum.center = self.center;
+        }
+        sum
+    }
+}
+
 /// Analyzes a cube and determines its diamater, antipodes, center, maybe more.
 // TODO(jmerm): technically this returns the wrong answer for graphs with 1 state like 0xB5ADB5AD.
 // TODO(jmerm): refactor this to make it more testable?
@@ -375,34 +399,41 @@ fn analyze(cube: i64, metric: &Metric) {
         canonical.insert(normalize_orientation(*key), key);
     }
 
-    let mut max_dist = 0;
-    let mut max_start: i64 = 0;
-    let mut max_end: i64 = 0;
-
-    let mut radius = 1000;
-    let mut center: i64 = 0;
-
     // Search those deduped states to see which has the max eccentricity
     // TODO(jmerm): handle case of many keys with max value.
-    // TODO(jmerm): make this concurrent
-    for val in canonical.values() {
-        let dist_map = breadth_first_search(**val, metric);
-        let (dest, length) = dist_map.iter().max_by_key(|entry| entry.1).unwrap();
-        if length > &max_dist {
-            max_dist = *length;
-            max_end = *dest;
-            max_start = **val;
-        }
+    let identity_stats = || Stats {
+        max_dist: 0,
+        max_start: 0,
+        max_end: 0,
+        radius: 1000,
+        center: 0,
+    };
+    let final_stats: Stats = canonical
+        .values()
+        .collect::<Vec<&&i64>>()
+        .into_par_iter()
+        .map(|val| {
+            let dist_map = breadth_first_search(**val, metric);
+            let (dest, length) = dist_map.iter().max_by_key(|entry| entry.1).unwrap();
 
-        if *length < radius {
-            radius = *length;
-            center = **val;
-        }
-    }
+            Stats {
+                max_dist: *length,
+                max_start: **val,
+                max_end: *dest,
+                radius: *length,
+                center: **val,
+            }
+        })
+        .reduce(identity_stats, |sum, i| i.join(sum));
 
     println!(
         "0x{:x} :: 0x{:x} to 0x{:x} in {}. center 0x{:x} with radius {}",
-        cube, max_start, max_end, max_dist, center, radius
+        cube,
+        final_stats.max_start,
+        final_stats.max_end,
+        final_stats.max_dist,
+        final_stats.center,
+        final_stats.radius,
     );
 }
 

@@ -108,7 +108,7 @@ mod tests {
 
     #[test]
     fn test_do_turn() {
-        use crate::{Face, Turn, TurnType, do_turn};
+        use crate::{do_turn, Face, Turn, TurnType};
         assert_eq!(0x20, do_turn(0x8, &Turn::Turn(Face::D, TurnType::Forward)));
         assert_eq!(0x40, do_turn(0x8, &Turn::Turn(Face::D, TurnType::Backward)));
         assert_eq!(0x100, do_turn(0x8, &Turn::Turn(Face::D, TurnType::Double)));
@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_breadth_first_search() {
-        use crate::{breadth_first_search, QTM, HTM};
+        use crate::{breadth_first_search, HTM, QTM};
         assert_eq!(1, *breadth_first_search(0x8, &HTM).values().max().unwrap());
         assert_eq!(2, *breadth_first_search(0x8, &QTM).values().max().unwrap());
     }

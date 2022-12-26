@@ -253,17 +253,19 @@ function FaceToColor(c) {
 }
 
 // Assumes nodes are already oriented correctly and does not reorient them.
-function BfsExplorNode(src, dst, turn, nodes, node_set, links, links_set, depth) {
+function BfsExplorNode(src, dst, turn, nodes, node_set, links, links_set, depth, highlight_rotations, origin) {
   // Add newly discovered nodes to the node set if not already present. We add
   // both the src and dest because sometimes nodes are discovered via reverse
   // turns which means the src is the one and other times nodes are discovered
   // by forward turns and dst is the new one.
   if (!node_set.has(src)) {
-    nodes.push({size: 11, id: src, color: '#1f77b4', depth: depth});
+    let color = (highlight_rotations && origin == NormalizeOrientation(src)) ?  '#69f542' : '#1f77b4'
+    nodes.push({size: 11, id: src, color: color, depth: depth});
     node_set.add(src);
   }
   if (!node_set.has(dst)) {
-    nodes.push({size: 11, id: dst, color: '#1f77b4', depth: depth});
+    let color = (highlight_rotations && origin == NormalizeOrientation(dst)) ?  '#69f542' : '#1f77b4'
+    nodes.push({size: 11, id: dst, color: color, depth: depth});
     node_set.add(dst);
   }
 
@@ -286,9 +288,10 @@ function BfsExplorNode(src, dst, turn, nodes, node_set, links, links_set, depth)
 // Explores the state space starting from Cube.
 // Returns an object containing Nodes and Links, appropriate for use with
 // d3.js's force simulation library.
-function BuildGraph(cube, ignore_orientation, htm) {
+function BuildGraph(cube, ignore_orientation, htm, highlight_rotations) {
+  let canonical_origin = NormalizeOrientation(cube);
   if (ignore_orientation) {
-    cube = NormalizeOrientation(cube);
+    cube = canonical_origin;
   }
   let i = 0;
   let nodes = [{size: 11, id: cube, color: '#ff7f0e', depth : 0}];
@@ -296,6 +299,7 @@ function BuildGraph(cube, ignore_orientation, htm) {
   let links = [];
   let links_set = new Set(); // all links so far.
 
+  console.log("building graph and highlighting rotations? ", highlight_rotations);
   node_set.add(cube);
   while (i < nodes.length) {
     for (let turn of ['b', 'l', 'u', 'r', 'd', 'f']) {
@@ -303,18 +307,18 @@ function BuildGraph(cube, ignore_orientation, htm) {
       let depth = nodes[i].depth;
       if (CanDoTurn(src, turn)) {
         let turned = DoTurn(src, turn);
-        BfsExplorNode(src, (ignore_orientation ? NormalizeOrientation(turned) : turned) , turn, nodes, node_set, links, links_set, depth+1);
+        BfsExplorNode(src, (ignore_orientation ? NormalizeOrientation(turned) : turned) , turn, nodes, node_set, links, links_set, depth+1, highlight_rotations, canonical_origin);
 
         // if htm, we create edges for double turns.
         turned = DoTurn(turned, turn);
         if (htm) {
-          BfsExplorNode(src, (ignore_orientation ? NormalizeOrientation(turned) : turned) , turn, nodes, node_set, links, links_set, depth+1);
+          BfsExplorNode(src, (ignore_orientation ? NormalizeOrientation(turned) : turned) , turn, nodes, node_set, links, links_set, depth+1, highlight_rotations, canonical_origin);
         }
 
         // When adding reverse turns, we invert the src/dst arguments to make
         // the arrow point the correct way.
         turned = DoTurn(turned, turn);
-        BfsExplorNode((ignore_orientation ? NormalizeOrientation(turned) : turned), src, turn, nodes, node_set, links, links_set, depth+1);
+        BfsExplorNode((ignore_orientation ? NormalizeOrientation(turned) : turned), src, turn, nodes, node_set, links, links_set, depth+1, highlight_rotations, canonical_origin);
       }
     }
     i++;
@@ -692,7 +696,7 @@ const named_cubes = new Map([
   ['alcatraz', 0x108400F43F87A1n],
 ]);
 
-function TryLoadGraph(str, ignore_orientation, htm) {
+function TryLoadGraph(str, ignore_orientation, htm, highlight_rotations) {
   // check if it is the name of a named cube
   if (named_cubes.has(str.toLowerCase())) {
     id = named_cubes.get(str.toLowerCase());
@@ -712,27 +716,29 @@ function TryLoadGraph(str, ignore_orientation, htm) {
   }
 
   d3.selectAll('svg').remove();
-  drawGraph(BuildGraph(id, ignore_orientation, htm), /*use_color=*/ !ignore_orientation);
+  drawGraph(BuildGraph(id, ignore_orientation, htm, highlight_rotations), /*use_color=*/ !ignore_orientation);
 
   // Update the URL to match the users's input so it can be copy-pasted more
   // easily.
-  let params = '?id=' + str + (ignore_orientation ? '&ignore_orientation=true' : '') + (htm ? '&metric=htm' : '');
+  let params = '?id=' + str + (ignore_orientation ? '&ignore_orientation=true' : '') + (htm ? '&metric=htm' : '') + (highlight_rotations ? '&highlight=rotations' : '');
+  console.log(params);
   window.history.pushState({'html':'index.html'},'', '/bandaged-cube-explorer' + params);
 }
 
 function LoadGraph(ele) {
   let ignore_orientation = document.getElementById('ignore_orientation').checked;
   let htm = document.getElementById('htm').checked;
+  let highlight_rotations = document.getElementById('rotations_of_id').checked;
   if (ele.id === 'input' && event.key !== 'Enter') {
     // The user is typing - do not update the graph.
     return;
   } else if (ele.id === 'input') {
     // The user has pressed enter in the input box - check their other
     // selections and then load the graph.
-    TryLoadGraph(ele.value, ignore_orientation, htm);
+    TryLoadGraph(ele.value, ignore_orientation, htm, highlight_rotations);
   } else {
     let id = document.getElementById('input').value;
-    TryLoadGraph(id, ignore_orientation, htm);
+    TryLoadGraph(id, ignore_orientation, htm, highlight_rotations);
   }
 }
 
@@ -788,6 +794,17 @@ window.onload = function() {
     document.getElementById('qtm').checked = true;
   }
 
+  let highlight_rotations = false;
+  if (urlParams.has('highlight') 
+    && urlParams.get('highlight').toLowerCase() === 'rotations') {
+    highlight_rotations = true;
+  }
+  if (highlight_rotations) {
+    document.getElementById('rotations_of_id').checked = true;
+  } else {
+    document.getElementById('id').checked = true;
+  }
+
   // Initialize page based on the user's selection.
-  TryLoadGraph(id, ignore_orientation, htm);
+  TryLoadGraph(id, ignore_orientation, htm, highlight_rotations);
 }

@@ -4,7 +4,7 @@
 //! Utils for analyzing the graphs of bandaged 3x3x3 Configurations.
 
 use lazy_static::lazy_static;
-use rayon::iter::*;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::cmp;
 use std::collections::{HashMap, VecDeque};
 
@@ -86,8 +86,7 @@ mod tests {
 
     #[test]
     fn test_can_turn_face() {
-        use crate::can_turn_face;
-        use crate::Face;
+        use crate::{can_turn_face, Face};
         assert_eq!(true, can_turn_face(1, Face::U));
         assert_eq!(false, can_turn_face(1, Face::R));
     }
@@ -109,26 +108,32 @@ mod tests {
 
     #[test]
     fn test_do_turn() {
-        // TODO(jmerm): this.
-        assert_eq!(1, 1);
+        use crate::{Face, Turn, TurnType, do_turn};
+        assert_eq!(0x20, do_turn(0x8, &Turn::Turn(Face::D, TurnType::Forward)));
+        assert_eq!(0x40, do_turn(0x8, &Turn::Turn(Face::D, TurnType::Backward)));
+        assert_eq!(0x100, do_turn(0x8, &Turn::Turn(Face::D, TurnType::Double)));
     }
 
     #[test]
     fn test_do_orientation() {
-        // TODO(jmerm): this.
-        assert_eq!(1, 1);
+        use crate::{do_orientation, Orientation};
+        assert_eq!(0x8, do_orientation(0x8, Orientation::Mirror));
+        assert_eq!(0x20, do_orientation(0x40, Orientation::Mirror));
+        assert_eq!(0x20, do_orientation(0x8, Orientation::Y));
+        assert_eq!(0x800000, do_orientation(0x8, Orientation::Z));
     }
 
     #[test]
     fn test_normalize_orientation() {
-        // TODO(jmerm): this.
-        assert_eq!(1, 1);
+        use crate::normalize_orientation;
+        assert_eq!(0x23, normalize_orientation(0x8c));
     }
 
     #[test]
     fn test_breadth_first_search() {
-        // TODO(jmerm): this.
-        assert_eq!(1, 1);
+        use crate::{breadth_first_search, QTM, HTM};
+        assert_eq!(1, *breadth_first_search(0x8, &HTM).values().max().unwrap());
+        assert_eq!(2, *breadth_first_search(0x8, &QTM).values().max().unwrap());
     }
 }
 
